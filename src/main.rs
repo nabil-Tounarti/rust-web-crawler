@@ -77,6 +77,30 @@ fn serial_crawler(url: String, fetcher: &impl Fetcher, fetched: &mut HashSet<Str
     }
 }
 
+fn concurrent_mutex_crawler(url: String, fetcher: Arc<impl Fetcher>, fetched: Arc<Mutex<HashSet<String>>>) {
+    {
+        let mut cache = fetched.lock().unwrap();
+        if cache.contains(&url) {
+            return
+        } 
+        cache.insert(url.clone());
+    }
+    let mut threads = vec![];
+    if let Ok(fetched_urls) = fetcher.fetch(&url){
+        
+        for url in  fetched_urls {
+            let clone_fetcher = fetcher.clone();
+            let fetched_clone = fetched.clone();
+            threads.push(thread::spawn(move || {
+                concurrent_mutex_crawler(url, clone_fetcher, fetched_clone);
+            }));
+        }
+    }
+    for thread in threads {
+        thread.join().unwrap();
+    }
+}
+
  fn main() {
     let fetcher = get_fake_fetcher();
     let fetcher_arc = Arc::new(fetcher);
@@ -86,10 +110,10 @@ fn serial_crawler(url: String, fetcher: &impl Fetcher, fetched: &mut HashSet<Str
     serial_crawler("https://example.com/".to_string(), &*fetcher_arc, &mut fetched_serial);
     println!("----------------------\n");
 
-    // println!("--- Concurrent Mutex Crawler ---");
-    // let fetched_mutex = Arc::new(Mutex::new(HashSet::new()));
-    // concurrent_mutex_crawler("https://example.com/".to_string(), fetcher_arc.clone(), fetched_mutex);
-    // println!("----------------------\n");
+    println!("--- Concurrent Mutex Crawler ---");
+    let fetched_mutex = Arc::new(Mutex::new(HashSet::new()));
+    concurrent_mutex_crawler("https://example.com/".to_string(), fetcher_arc.clone(), fetched_mutex);
+    println!("----------------------\n");
 
     // println!("--- Concurrent Channel Crawler ---");
     // concurrent_channel_crawler("https://example.com/".to_string(), fetcher_arc);
@@ -125,5 +149,16 @@ mod tests {
         
         let expected = get_expected_urls();
         assert_eq!(fetched, expected);
+    }
+  
+    #[test]
+    fn test_concurrent_mutex_crawler_happy_path() {
+        let fetcher = Arc::new(get_fake_fetcher());
+        let fetched_arc = Arc::new(Mutex::new(HashSet::new()));
+        concurrent_mutex_crawler("https://example.com/".to_string(), fetcher, Arc::clone(&fetched_arc));
+
+        let fetched_guard = fetched_arc.lock().unwrap();
+        let expected = get_expected_urls();
+        assert_eq!(*fetched_guard, expected);
     }
 }
