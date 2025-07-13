@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -64,6 +65,65 @@ fn get_fake_fetcher() -> FakeFetcher {
 
     FakeFetcher { results }
 }
- fn main(){
-    print!("web crawler !")
- }
+
+fn serial_crawler(url: String, fetcher: &impl Fetcher, fetched: &mut HashSet<String>) {
+    if fetched.contains(&url) {
+        return
+    } 
+    fetched.insert(url.clone());
+    let fetched_urls = fetcher.fetch(&url).unwrap_or_default();
+    for url in  fetched_urls {
+        serial_crawler(url, fetcher, fetched);
+    }
+}
+
+ fn main() {
+    let fetcher = get_fake_fetcher();
+    let fetcher_arc = Arc::new(fetcher);
+
+    println!("--- Serial Crawler ---");
+    let mut fetched_serial = HashSet::new();
+    serial_crawler("https://example.com/".to_string(), &*fetcher_arc, &mut fetched_serial);
+    println!("----------------------\n");
+
+    // println!("--- Concurrent Mutex Crawler ---");
+    // let fetched_mutex = Arc::new(Mutex::new(HashSet::new()));
+    // concurrent_mutex_crawler("https://example.com/".to_string(), fetcher_arc.clone(), fetched_mutex);
+    // println!("----------------------\n");
+
+    // println!("--- Concurrent Channel Crawler ---");
+    // concurrent_channel_crawler("https://example.com/".to_string(), fetcher_arc);
+    // println!("----------------------\n");
+}
+
+
+
+ #[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    /// Helper function to get the set of all URLs we expect to be crawled.
+    fn get_expected_urls() -> HashSet<String> {
+        [
+            "https://example.com/",
+            "https://example.com/page1",
+            "https://example.com/page2",
+            "https://example.com/page3",
+            "https://example.com/page4",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+    }
+
+    #[test]
+    fn test_serial_crawler_happy_path() {
+        let fetcher = get_fake_fetcher();
+        let mut fetched = HashSet::new();
+        serial_crawler("https://example.com/".to_string(), &fetcher, &mut fetched);
+        
+        let expected = get_expected_urls();
+        assert_eq!(fetched, expected);
+    }
+}
