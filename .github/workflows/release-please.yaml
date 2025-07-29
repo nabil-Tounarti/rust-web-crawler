@@ -1,19 +1,12 @@
-
 name: Release Please
-
 on:
-  workflow_call:
-    secrets:
-      RELEASE_PLEASE_APPLICATION_ID:
-        required: true
-      RELEASE_PLEASE_PRIVATE_KEY:
-        required: true
-
+  push:
+    branches:
+      - main
 permissions:
   contents: write
   issues: write
   pull-requests: write
-
 jobs:
   release-please:
     runs-on: ubuntu-latest
@@ -30,3 +23,4 @@ jobs:
         with:
           token: ${{ steps.get_token.outputs.token }}
           target-branch: ${{ github.ref_name }}
+          
