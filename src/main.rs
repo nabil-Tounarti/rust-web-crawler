@@ -3,10 +3,14 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
+// The behavior of a fetcher.
 trait Fetcher: Send + Sync + 'static {
+    /// Fetch returns a list of URLs found on the page, or an error.
     fn fetch(&self, url: &str) -> Result<Vec<String>, String>;
 }
 
+/// A fake fetcher that returns canned results for testing.
+/// It stores a Result to allow for simulating fetch errors.
 struct FakeFetcher {
     results: HashMap<String, Result<Vec<String>, String>>,
 }
@@ -315,4 +319,50 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_crawler_with_fetch_error() {
+        let mut results = HashMap::new();
+        let start_url = "https://start.com/".to_string();
+        let ok_url = "https://ok.com/".to_string();
+        let bad_url = "https://bad.com/".to_string();
+        results.insert(start_url.clone(), Ok(vec![ok_url.clone(), bad_url.clone()]));
+        results.insert(ok_url.clone(), Ok(vec![]));
+        results.insert(bad_url.clone(), Err("permanent failure".to_string()));
+        let fetcher = FakeFetcher { results };
+
+        // The crawlers should attempt to fetch all three URLs, even if one fails.
+        let expected: HashSet<String> = [start_url.clone(), ok_url.clone(), bad_url.clone()]
+            .iter()
+            .cloned()
+            .collect();
+
+        // Serial
+        let mut fetched_serial = HashSet::new();
+        serial_crawler(start_url.clone(), &fetcher, &mut fetched_serial);
+        assert_eq!(
+            fetched_serial, expected,
+            "Serial crawler failed with fetch error"
+        );
+
+        // Mutex
+        let fetcher_arc = Arc::new(fetcher);
+        let fetched_mutex = Arc::new(Mutex::new(HashSet::new()));
+        concurrent_mutex_crawler(
+            start_url.clone(),
+            fetcher_arc.clone(),
+            fetched_mutex.clone(),
+        );
+        assert_eq!(
+            *fetched_mutex.lock().unwrap(),
+            expected,
+            "Mutex crawler failed with fetch error"
+        );
+
+        // Channel
+        let fetched_channel = concurrent_channel_crawler(start_url.clone(), fetcher_arc);
+        assert_eq!(
+            fetched_channel, expected,
+            "Channel crawler failed with fetch error"
+        );
+    }
 }
