@@ -21,6 +21,7 @@
   "packages": {
     ".": {
       "release-type": "rust",
+      "package-name": "rust_web_crawler",
       "changelog-path": "CHANGELOG.md"
     }
   }
