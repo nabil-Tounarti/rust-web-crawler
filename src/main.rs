@@ -3,14 +3,10 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
-// The behavior of a fetcher.
 trait Fetcher: Send + Sync + 'static {
-    /// Fetch returns a list of URLs found on the page, or an error.
     fn fetch(&self, url: &str) -> Result<Vec<String>, String>;
 }
 
-/// A fake fetcher that returns canned results for testing.
-/// It stores a Result to allow for simulating fetch errors.
 struct FakeFetcher {
     results: HashMap<String, Result<Vec<String>, String>>,
 }
