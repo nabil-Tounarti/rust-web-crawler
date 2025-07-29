@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
@@ -17,21 +17,21 @@ struct FakeFetcher {
 
 impl Fetcher for FakeFetcher {
     fn fetch(&self, url: &str) -> Result<Vec<String>, String> {
-        println!("Fetching: {}", url);
+        println!("Fetching: {url}");
         // Simulate network latency to make concurrency benefits more apparent.
         thread::sleep(Duration::from_millis(100));
         match self.results.get(url) {
             Some(Ok(urls)) => {
-                println!("Found:    {}", url);
+                println!("Found:    {url}");
                 Ok(urls.clone())
             }
             Some(Err(e)) => {
-                println!("Error on: {}", url);
+                println!("Error on: {url}");
                 Err(e.clone())
             }
             None => {
-                println!("Missing:  {}", url);
-                Err(format!("not found: {}", url))
+                println!("Missing:  {url}");
+                Err(format!("not found: {url}"))
             }
         }
     }
@@ -89,7 +89,11 @@ fn serial_crawler(url: String, fetcher: &impl Fetcher, fetched: &mut HashSet<Str
 // Part 2: Concurrent Crawler with Mutex (User's Implementation)
 //===========================================================================
 
-fn concurrent_mutex_crawler(url: String, fetcher: Arc<impl Fetcher>, fetched: Arc<Mutex<HashSet<String>>>) {
+fn concurrent_mutex_crawler(
+    url: String,
+    fetcher: Arc<impl Fetcher>,
+    fetched: Arc<Mutex<HashSet<String>>>,
+) {
     {
         let mut cache = fetched.lock().unwrap();
         if cache.contains(&url) {
@@ -171,12 +175,20 @@ fn main() {
 
     println!("--- Serial Crawler ---");
     let mut fetched_serial = HashSet::new();
-    serial_crawler("https://example.com/".to_string(), &*fetcher_arc, &mut fetched_serial);
+    serial_crawler(
+        "https://example.com/".to_string(),
+        &*fetcher_arc,
+        &mut fetched_serial,
+    );
     println!("----------------------\n");
 
     println!("--- Concurrent Mutex Crawler ---");
     let fetched_mutex = Arc::new(Mutex::new(HashSet::new()));
-    concurrent_mutex_crawler("https://example.com/".to_string(), fetcher_arc.clone(), fetched_mutex);
+    concurrent_mutex_crawler(
+        "https://example.com/".to_string(),
+        fetcher_arc.clone(),
+        fetched_mutex,
+    );
     println!("----------------------\n");
 
     println!("--- Concurrent Channel Crawler ---");
@@ -212,7 +224,7 @@ mod tests {
         let fetcher = get_fake_fetcher();
         let mut fetched = HashSet::new();
         serial_crawler("https://example.com/".to_string(), &fetcher, &mut fetched);
-        
+
         let expected = get_expected_urls();
         assert_eq!(fetched, expected);
     }
@@ -221,7 +233,11 @@ mod tests {
     fn test_concurrent_mutex_crawler_happy_path() {
         let fetcher = Arc::new(get_fake_fetcher());
         let fetched_arc = Arc::new(Mutex::new(HashSet::new()));
-        concurrent_mutex_crawler("https://example.com/".to_string(), fetcher, Arc::clone(&fetched_arc));
+        concurrent_mutex_crawler(
+            "https://example.com/".to_string(),
+            fetcher,
+            Arc::clone(&fetched_arc),
+        );
 
         let fetched_guard = fetched_arc.lock().unwrap();
         let expected = get_expected_urls();
@@ -232,7 +248,7 @@ mod tests {
     fn test_concurrent_channel_crawler_happy_path() {
         let fetcher = Arc::new(get_fake_fetcher());
         let fetched = concurrent_channel_crawler("https://example.com/".to_string(), fetcher);
-        
+
         let expected = get_expected_urls();
         assert_eq!(fetched, expected);
     }
@@ -246,17 +262,27 @@ mod tests {
         // Serial
         let mut fetched_serial = HashSet::new();
         serial_crawler(url.clone(), &fetcher, &mut fetched_serial);
-        assert_eq!(fetched_serial, expected, "Serial crawler failed on non-existent URL");
+        assert_eq!(
+            fetched_serial, expected,
+            "Serial crawler failed on non-existent URL"
+        );
 
         // Mutex
         let fetcher_arc = Arc::new(get_fake_fetcher()); // Re-create Arc for this test
         let fetched_mutex = Arc::new(Mutex::new(HashSet::new()));
         concurrent_mutex_crawler(url.clone(), fetcher_arc.clone(), fetched_mutex.clone());
-        assert_eq!(*fetched_mutex.lock().unwrap(), expected, "Mutex crawler failed on non-existent URL");
+        assert_eq!(
+            *fetched_mutex.lock().unwrap(),
+            expected,
+            "Mutex crawler failed on non-existent URL"
+        );
 
         // Channel
         let fetched_channel = concurrent_channel_crawler(url.clone(), fetcher_arc);
-        assert_eq!(fetched_channel, expected, "Channel crawler failed on non-existent URL");
+        assert_eq!(
+            fetched_channel, expected,
+            "Channel crawler failed on non-existent URL"
+        );
     }
 
     #[test]
@@ -270,17 +296,27 @@ mod tests {
         // Serial
         let mut fetched_serial = HashSet::new();
         serial_crawler(url.clone(), &fetcher, &mut fetched_serial);
-        assert_eq!(fetched_serial, expected, "Serial crawler failed on single URL");
+        assert_eq!(
+            fetched_serial, expected,
+            "Serial crawler failed on single URL"
+        );
 
         // Mutex
         let fetcher_arc = Arc::new(fetcher);
         let fetched_mutex = Arc::new(Mutex::new(HashSet::new()));
         concurrent_mutex_crawler(url.clone(), fetcher_arc.clone(), fetched_mutex.clone());
-        assert_eq!(*fetched_mutex.lock().unwrap(), expected, "Mutex crawler failed on single URL");
+        assert_eq!(
+            *fetched_mutex.lock().unwrap(),
+            expected,
+            "Mutex crawler failed on single URL"
+        );
 
         // Channel
         let fetched_channel = concurrent_channel_crawler(url.clone(), fetcher_arc);
-        assert_eq!(fetched_channel, expected, "Channel crawler failed on single URL");
+        assert_eq!(
+            fetched_channel, expected,
+            "Channel crawler failed on single URL"
+        );
     }
 
     #[test]
@@ -293,23 +329,40 @@ mod tests {
         results.insert(ok_url.clone(), Ok(vec![]));
         results.insert(bad_url.clone(), Err("permanent failure".to_string()));
         let fetcher = FakeFetcher { results };
-        
+
         // The crawlers should attempt to fetch all three URLs, even if one fails.
-        let expected: HashSet<String> = [start_url.clone(), ok_url.clone(), bad_url.clone()].iter().cloned().collect();
+        let expected: HashSet<String> = [start_url.clone(), ok_url.clone(), bad_url.clone()]
+            .iter()
+            .cloned()
+            .collect();
 
         // Serial
         let mut fetched_serial = HashSet::new();
         serial_crawler(start_url.clone(), &fetcher, &mut fetched_serial);
-        assert_eq!(fetched_serial, expected, "Serial crawler failed with fetch error");
+        assert_eq!(
+            fetched_serial, expected,
+            "Serial crawler failed with fetch error"
+        );
 
         // Mutex
         let fetcher_arc = Arc::new(fetcher);
         let fetched_mutex = Arc::new(Mutex::new(HashSet::new()));
-        concurrent_mutex_crawler(start_url.clone(), fetcher_arc.clone(), fetched_mutex.clone());
-        assert_eq!(*fetched_mutex.lock().unwrap(), expected, "Mutex crawler failed with fetch error");
+        concurrent_mutex_crawler(
+            start_url.clone(),
+            fetcher_arc.clone(),
+            fetched_mutex.clone(),
+        );
+        assert_eq!(
+            *fetched_mutex.lock().unwrap(),
+            expected,
+            "Mutex crawler failed with fetch error"
+        );
 
         // Channel
         let fetched_channel = concurrent_channel_crawler(start_url.clone(), fetcher_arc);
-        assert_eq!(fetched_channel, expected, "Channel crawler failed with fetch error");
+        assert_eq!(
+            fetched_channel, expected,
+            "Channel crawler failed with fetch error"
+        );
     }
 }
