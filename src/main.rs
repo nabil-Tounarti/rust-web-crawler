@@ -3,7 +3,9 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
+// The behavior of a fetcher.
 trait Fetcher: Send + Sync + 'static {
+    /// Fetch returns a list of URLs found on the page, or an error.
     fn fetch(&self, url: &str) -> Result<Vec<String>, String>;
 }
 
