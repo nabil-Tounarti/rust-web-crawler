@@ -10,6 +10,41 @@ on:
       - 'v*.*.*' # Triggers on version tags like v1.0.0
 
 jobs:
+  prepare:
+    # This helper job determines the correct tag before calling the reusable workflow
+    name: Determine Image Tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.determine-tag.outputs.tag }}
+    steps:
+      - name: Determine Docker tag based on Git ref
+        id: determine-tag
+        run: |
+          # Default short SHA for branch builds
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            # Case 1: A version tag was pushed (e.g., v1.2.3)
+            # Use the tag name itself, removing the 'v' prefix.
+            TAG_NAME="${{ github.ref_name }}"
+            TAG_NAME="${TAG_NAME#v}"  # Remove 'v' prefix using bash parameter expansion
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+            # Case 2: A commit was pushed to the main branch (not a tag)
+            TAG_NAME="dev-${SHORT_SHA}"
+          elif [[ "${{ github.ref_name }}" == feature/* || "${{ github.ref_name }}" == bugfix/* ]]; then
+            # Case 3: A commit was pushed to a feature or bugfix branch
+            # Note: As requested, both use the 'feature-' prefix.
+            TAG_NAME="feature-${SHORT_SHA}"
+          else
+            # Fallback for any other scenario (should not happen with the triggers defined)
+            # Creates a slug from the branch name
+            SLUG_REF_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
+            TAG_NAME="${SLUG_REF_NAME}-${SHORT_SHA}"
+          fi
+          
+          echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Determined image tag: ${TAG_NAME}"
+
   build-and-publish:
     name: Build and Publish to Registry
     uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@main
@@ -38,37 +73,4 @@ jobs:
 
     # This 'needs' block ensures the 'prepare' job runs first
     needs: prepare
-
-  prepare:
-    # This helper job determines the correct tag before calling the reusable workflow
-    name: Determine Image Tag
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.determine-tag.outputs.tag }}
-    steps:
-      - name: Determine Docker tag based on Git ref
-        id: determine-tag
-        run: |
-          # Default short SHA for branch builds
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
-
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            # Case 1: A version tag was pushed (e.g., v1.2.3)
-            # Use the tag name itself, removing the 'v' prefix.
-            TAG_NAME="${{ github.ref_name#v }}"
-          elif [[ "${{ github.ref_name }}" == "main" ]]; then
-            # Case 2: A commit was pushed to the main branch (not a tag)
-            TAG_NAME="dev-${SHORT_SHA}"
-          elif [[ "${{ github.ref_name }}" == feature/* || "${{ github.ref_name }}" == bugfix/* ]]; then
-            # Case 3: A commit was pushed to a feature or bugfix branch
-            # Note: As requested, both use the 'feature-' prefix.
-            TAG_NAME="feature-${SHORT_SHA}"
-          else
-            # Fallback for any other scenario (should not happen with the triggers defined)
-            # Creates a slug from the branch name
-            SLUG_REF_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
-            TAG_NAME="${SLUG_REF_NAME}-${SHORT_SHA}"
-          fi
-          
-          echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
-          echo "Determined image tag: ${TAG_NAME}"
+    
