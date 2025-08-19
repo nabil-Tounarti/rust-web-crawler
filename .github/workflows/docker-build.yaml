@@ -1,10 +1,7 @@
 name: Build and Push OCI Image
 
 on:
-  workflow_run:
-    workflows: ["Conventional Commit Check PR Title"]
-    types:
-      - completed
+  push:
     branches:
       - main
       - 'feature/*'
@@ -16,8 +13,6 @@ jobs:
   prepare:
     name: Determine Image Tag
     runs-on: ubuntu-latest
-    # Only run if the triggering workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       tag: ${{ steps.determine-tag.outputs.tag }}
     steps:
@@ -26,17 +21,16 @@ jobs:
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
 
-          if [[ "${{ github.ref_type }}" == "tag" ]] && [[ "${{ github.ref_name }}" == "main" || "${{ github.event.base_ref }}" == "refs/heads/main" ]]; then
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
             TAG_NAME="${{ github.ref_name }}"
             TAG_NAME="${TAG_NAME#v}"  # Remove 'v' prefix using bash parameter expansion
           elif [[ "${{ github.ref_name }}" == "main" ]]; then
             TAG_NAME="dev-${SHORT_SHA}"
-          elif [[ "${{ github.ref_name }}" =~ ^feature/ ]] || [[ "${{ github.ref_name }}" =~ ^bugfix/ ]]; then
+          elif [[ "${{ github.ref_name }}" == feature/* ]] || [[ "${{ github.ref_name }}" == bugfix/* ]]; then
             TAG_NAME="feature-${SHORT_SHA}"
           else
-            echo "Error: Unsupported branch or ref type: ${{ github.ref_name }}"
-            echo "Supported patterns: main, feature/*, bugfix/*, or tags"
-            exit 1
+            SLUG_REF_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
+            TAG_NAME="${SLUG_REF_NAME}-${SHORT_SHA}"
           fi
           
           echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
