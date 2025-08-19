@@ -5,6 +5,12 @@ on:
     workflows: ["Rust CI"]
     types:
       - completed
+    branches:
+      - main
+      - 'feature/**'
+      - 'bugfix/**'
+    tags:
+      - 'v*'
 
 jobs:
   prepare:
