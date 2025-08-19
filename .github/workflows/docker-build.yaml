@@ -8,52 +8,42 @@ on:
       - 'bugfix/**'
     tags:
       - 'v*.*.*'
-  workflow_run:
-    workflows: ["Rust CI"]
-    types:
-      - completed
 
 jobs:
   prepare:
     name: Determine Image Tag
     runs-on: ubuntu-latest
-    # Only run if this is a direct push to allowed branches/tags, or if CI workflow succeeded
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     outputs:
       tag: ${{ steps.determine-tag.outputs.tag }}
     steps:
       - name: Determine Docker tag based on Git ref
         id: determine-tag
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
-            BRANCH_NAME="${{ github.ref_name }}"
-          else
-            SHORT_SHA=$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-8)
-            BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
-          fi
-          
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
-            # Only allow version tags on main branch
-            if [[ "$BRANCH_NAME" != "main" ]]; then
-              echo "Error: Version tags are only allowed on main branch, got: $BRANCH_NAME"
-              echo "Tags can only be created from main branch for X.Y.Z versioning"
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_BRANCHES=$(git branch -r --contains ${{ github.sha }} | grep -E '(origin/main|origin/master)' || true)
+  
+            if [[ -n "$TAG_BRANCHES" ]]; then
+              TAG_NAME="${{ github.ref_name }}"
+              TAG_NAME="${TAG_NAME#v}"
+              echo "Processing tag on main branch: ${{ github.ref_name }} -> ${TAG_NAME}"
+            else
+              echo "Error: Tag ${{ github.ref_name }} is not on main branch"
+              echo "Tags must be created on main branch to generate X.Y.Z image tags"
               exit 1
             fi
-            TAG_NAME="${{ github.ref_name }}"
-            TAG_NAME="${TAG_NAME#v}"  # Remove 'v' prefix
-          elif [[ "$BRANCH_NAME" == "main" ]]; then
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
             TAG_NAME="dev-${SHORT_SHA}"
-          elif [[ "$BRANCH_NAME" =~ ^feature/ ]] || [[ "$BRANCH_NAME" =~ ^bugfix/ ]]; then
+            echo "Processing main branch push -> ${TAG_NAME}"
+          elif [[ "${{ github.ref_name }}" =~ ^feature/ ]] || [[ "${{ github.ref_name }}" =~ ^bugfix/ ]]; then
             TAG_NAME="feature-${SHORT_SHA}"
+            echo "Processing feature/bugfix branch: ${{ github.ref_name }} -> ${TAG_NAME}"
           else
-            echo "Error: Unsupported branch or ref type: $BRANCH_NAME"
-            echo "Supported patterns: main, feature/*, bugfix/*, or tags on main"
+            echo "Error: Unsupported branch or ref type: ${{ github.ref_name }}"
+            echo "Supported patterns: main, feature/*, bugfix/*, or tags"
             exit 1
           fi
           
           echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
           echo "Determined image tag: ${TAG_NAME}"
-
