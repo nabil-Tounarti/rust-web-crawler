@@ -363,5 +363,4 @@ mod tests {
             "Channel crawler failed with fetch error"
         );
     }
-
 }
