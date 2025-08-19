@@ -5,12 +5,6 @@ on:
     workflows: ["Rust CI"]
     types:
       - completed
-    branches:
-      - main
-      - 'feature/**'      # Use ** instead of * for better pattern matching
-      - 'bugfix/**'
-    tags:
-      - 'v*.*.*' # Triggers on version tags like v1.0.0
 
 jobs:
   prepare:
