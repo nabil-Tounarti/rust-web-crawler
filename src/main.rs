@@ -316,7 +316,7 @@ mod tests {
             "Channel crawler failed on single URL"
         );
     }
-    
+
     #[test]
     fn test_crawler_with_fetch_error() {
         let mut results = HashMap::new();
