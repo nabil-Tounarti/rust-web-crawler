@@ -34,8 +34,14 @@ jobs:
             SHORT_SHA=$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-8)
             BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
           fi
-
+          
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
+            # Only allow version tags on main branch
+            if [[ "$BRANCH_NAME" != "main" ]]; then
+              echo "Error: Version tags are only allowed on main branch, got: $BRANCH_NAME"
+              echo "Tags can only be created from main branch for X.Y.Z versioning"
+              exit 1
+            fi
             TAG_NAME="${{ github.ref_name }}"
             TAG_NAME="${TAG_NAME#v}"  # Remove 'v' prefix
           elif [[ "$BRANCH_NAME" == "main" ]]; then
@@ -44,7 +50,7 @@ jobs:
             TAG_NAME="feature-${SHORT_SHA}"
           else
             echo "Error: Unsupported branch or ref type: $BRANCH_NAME"
-            echo "Supported patterns: main, feature/*, bugfix/*, or tags"
+            echo "Supported patterns: main, feature/*, bugfix/*, or tags on main"
             exit 1
           fi
           
