@@ -5,36 +5,39 @@ on:
     workflows: ["Rust CI"]
     types:
       - completed
-    branches:
-      - main
-      - 'feature/**'
-      - 'bugfix/**'
-    tags:
-      - 'v*'
 
 jobs:
   prepare:
     name: Determine Image Tag
     runs-on: ubuntu-latest
-    # Only run if the triggering workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Only run if the triggering workflow succeeded and on allowed branches/tags
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      (
+        github.event.workflow_run.head_branch == 'main' ||
+        startsWith(github.event.workflow_run.head_branch, 'feature/') ||
+        startsWith(github.event.workflow_run.head_branch, 'bugfix/') ||
+        startsWith(github.event.workflow_run.head_branch, 'refs/tags/')
+      )
     outputs:
       tag: ${{ steps.determine-tag.outputs.tag }}
     steps:
       - name: Determine Docker tag based on Git ref
         id: determine-tag
         run: |
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          SHORT_SHA=$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-8)
+          BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
 
-          if [[ "${{ github.ref_type }}" == "tag" ]] && [[ "${{ github.ref_name }}" == "main" || "${{ github.event.base_ref }}" == "refs/heads/main" ]]; then
-            TAG_NAME="${{ github.ref_name }}"
-            TAG_NAME="${TAG_NAME#v}"  # Remove 'v' prefix using bash parameter expansion
-          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+          if [[ "$BRANCH_NAME" =~ ^refs/tags/ ]]; then
+            # Extract tag name from refs/tags/v1.0.0 format
+            TAG_NAME=$(echo "$BRANCH_NAME" | sed 's|refs/tags/||')
+            TAG_NAME="${TAG_NAME#v}"  # Remove 'v' prefix
+          elif [[ "$BRANCH_NAME" == "main" ]]; then
             TAG_NAME="dev-${SHORT_SHA}"
-          elif [[ "${{ github.ref_name }}" =~ ^feature/ ]] || [[ "${{ github.ref_name }}" =~ ^bugfix/ ]]; then
+          elif [[ "$BRANCH_NAME" =~ ^feature/ ]] || [[ "$BRANCH_NAME" =~ ^bugfix/ ]]; then
             TAG_NAME="feature-${SHORT_SHA}"
           else
-            echo "Error: Unsupported branch or ref type: ${{ github.ref_name }}"
+            echo "Error: Unsupported branch or ref type: $BRANCH_NAME"
             echo "Supported patterns: main, feature/*, bugfix/*, or tags"
             exit 1
           fi
