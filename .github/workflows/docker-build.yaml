@@ -1,6 +1,13 @@
 name: Build and Push OCI Image
 
 on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'bugfix/**'
+    tags:
+      - 'v*.*.*'
   workflow_run:
     workflows: ["Rust CI"]
     types:
@@ -10,27 +17,26 @@ jobs:
   prepare:
     name: Determine Image Tag
     runs-on: ubuntu-latest
-    # Only run if the triggering workflow succeeded and on allowed branches/tags
+    # Only run if this is a direct push to allowed branches/tags, or if CI workflow succeeded
     if: |
-      github.event.workflow_run.conclusion == 'success' &&
-      (
-        github.event.workflow_run.head_branch == 'main' ||
-        startsWith(github.event.workflow_run.head_branch, 'feature/') ||
-        startsWith(github.event.workflow_run.head_branch, 'bugfix/') ||
-        startsWith(github.event.workflow_run.head_branch, 'refs/tags/')
-      )
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     outputs:
       tag: ${{ steps.determine-tag.outputs.tag }}
     steps:
       - name: Determine Docker tag based on Git ref
         id: determine-tag
         run: |
-          SHORT_SHA=$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-8)
-          BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+            BRANCH_NAME="${{ github.ref_name }}"
+          else
+            SHORT_SHA=$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-8)
+            BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
+          fi
 
-          if [[ "$BRANCH_NAME" =~ ^refs/tags/ ]]; then
-            # Extract tag name from refs/tags/v1.0.0 format
-            TAG_NAME=$(echo "$BRANCH_NAME" | sed 's|refs/tags/||')
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_NAME="${{ github.ref_name }}"
             TAG_NAME="${TAG_NAME#v}"  # Remove 'v' prefix
           elif [[ "$BRANCH_NAME" == "main" ]]; then
             TAG_NAME="dev-${SHORT_SHA}"
