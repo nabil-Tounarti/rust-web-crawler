@@ -56,3 +56,4 @@ jobs:
           
           echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
           echo "Determined image tag: ${TAG_NAME}"
+
