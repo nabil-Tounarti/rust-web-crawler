@@ -1,10 +1,6 @@
 name: Build and Push OCI Image
 
 on:
-  workflow_run:
-    workflows: ["Rust CI"]
-    types:
-      - completed
     branches:
       - main
       - 'feature/*'
