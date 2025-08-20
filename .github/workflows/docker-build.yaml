@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Need full history to check branch ancestry
+          fetch-depth: 0
 
       - name: Determine Docker tag based on Git ref
         id: determine-tag
