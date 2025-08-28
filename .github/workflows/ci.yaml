@@ -26,7 +26,11 @@ jobs:
       - name: Determine Docker tag based on Git ref
         id: determine-tag
         run: |
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-8)
+          else
+            SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          fi
 
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             TAG_NAME="dev-${SHORT_SHA}"
@@ -34,7 +38,7 @@ jobs:
           else
             # This covers feature/ and bugfix/ branches
             TAG_NAME="feature-${SHORT_SHA}"
-            echo "Processing feature/bugfix branch: ${{ github.ref_name }} -> ${TAG_NAME}"
+            echo "Processing feature/bugfix branch -> ${TAG_NAME}"
           fi
           
           echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
