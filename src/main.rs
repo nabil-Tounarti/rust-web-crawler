@@ -7,8 +7,6 @@ trait Fetcher: Send + Sync + 'static {
     fn fetch(&self, url: &str) -> Result<Vec<String>, String>;
 }
 
-/// A fake fetcher that returns canned results for testing.
-/// It stores a Result to allow for simulating fetch errors.
 struct FakeFetcher {
     results: HashMap<String, Result<Vec<String>, String>>,
 }
