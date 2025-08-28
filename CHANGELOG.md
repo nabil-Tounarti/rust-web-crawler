@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/nabil-Tounarti/rust-web-crawler/compare/v1.0.0...v1.1.0) (2025-08-28)
+
+
+### 🚀 Features
+
+* test ci build feature ([#16](https://github.com/nabil-Tounarti/rust-web-crawler/issues/16)) ([dc375b5](https://github.com/nabil-Tounarti/rust-web-crawler/commit/dc375b5925c903e1d1a8b05db5128171f939ddaa))
+
+
+### 🐞 Bug Fixes
+
+* add ci forgotten cases ([#19](https://github.com/nabil-Tounarti/rust-web-crawler/issues/19)) ([3c2a2bd](https://github.com/nabil-Tounarti/rust-web-crawler/commit/3c2a2bdf327e440a64ee30e8cebc12209fd9feef))
+* fix release please config ([#20](https://github.com/nabil-Tounarti/rust-web-crawler/issues/20)) ([9db4773](https://github.com/nabil-Tounarti/rust-web-crawler/commit/9db4773e7b433772cdd556ea8468875910d9fdd5))
+* modify ci configuration ([3b372db](https://github.com/nabil-Tounarti/rust-web-crawler/commit/3b372dbf9070f59715eb8093af4d704915aeb029))
+
+
+### 🧰 Other
+
+* **main:** release rust_web_crawler 1.0.0 ([#6](https://github.com/nabil-Tounarti/rust-web-crawler/issues/6)) ([4f344c2](https://github.com/nabil-Tounarti/rust-web-crawler/commit/4f344c2e0b505f7984947e332a6bc33b6f1333cb))
+
 ## [1.0.0](https://github.com/nabil-Tounarti/rust-web-crawler/compare/rust_web_crawler-v0.1.0...rust_web_crawler-v1.0.0) (2025-08-28)
 
 
