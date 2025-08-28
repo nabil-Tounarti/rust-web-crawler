@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/nabil-Tounarti/rust-web-crawler/compare/v1.1.0...v1.1.1) (2025-08-28)
+
+
+### ✨ Polish
+
+* delete comments ([#22](https://github.com/nabil-Tounarti/rust-web-crawler/issues/22)) ([1416f12](https://github.com/nabil-Tounarti/rust-web-crawler/commit/1416f12221ab8edda4eaafbb0aaf3d77a01c6f52))
+
 ## [1.1.0](https://github.com/nabil-Tounarti/rust-web-crawler/compare/v1.0.0...v1.1.0) (2025-08-28)
 
 
